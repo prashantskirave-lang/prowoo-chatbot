@@ -77,24 +77,21 @@ app.post('/api/chat', async (req, res) => {
 
         faqData.forEach(item => {
             let score = 0;
-            // Check for exact question match (high priority)
+            // Check for exact question match (very high priority)
             const qNorm = item.Question ? normalize(item.Question) : '';
             if (qNorm === userMsgNormalized) {
-                score += 100;
+                score += 1000;
             }
 
             // Check for keywords inclusion
             if (item.Keywords) {
                 const keywords = item.Keywords.split(' ').map(k => normalize(k));
                 keywords.forEach(k => {
-                    // Only match if not a stop word and search term is long enough
                     if (k && !stopWords.has(k) && k.length > 1) {
-                        if (userMsgNormalized.includes(k)) {
-                            // Word boundary check
-                            const regex = new RegExp(`\\b${k}\\b`, 'i');
-                            if (regex.test(userMsgNormalized)) {
-                                score += 10;
-                            }
+                        const regex = new RegExp(`\\b${k}\\b`, 'i');
+                        if (regex.test(userMsgNormalized)) {
+                            // Rare/Longer words get more points
+                            score += (5 + k.length);
                         }
                     }
                 });
@@ -103,6 +100,11 @@ app.post('/api/chat', async (req, res) => {
             if (score > maxScore) {
                 maxScore = score;
                 bestMatch = item;
+            } else if (score === maxScore && score > 0) {
+                // If scores tie, pick the one with the longer question (often more specific)
+                if (item.Question && bestMatch && item.Question.length > bestMatch.Question.length) {
+                    bestMatch = item;
+                }
             }
         });
 
