@@ -110,10 +110,13 @@ app.post('/api/chat', async (req, res) => {
             }
         });
 
-        if (maxScore >= 10) {
+        if (maxScore >= 25) {
             console.log(`Local match found: ${bestMatch.Question} (Score: ${maxScore})`);
             return res.json({ reply: bestMatch.Answer });
         }
+
+        const refusalMessage = "I apologize, but I do not have permission or the information required to answer that specific query. Please contact ProWoo at info@prowoo.in for further assistance.";
+
 
         // 2. Fallback to Gemini API
         try {
@@ -160,7 +163,7 @@ app.post('/api/chat', async (req, res) => {
         } catch (apiError) {
             console.error("Gemini API Error:", apiError.message);
             // Consistent fallback for API issues or out-of-scope
-            res.json({ reply: "I apologize, but I do not have permission or the information required to answer that specific query. Please contact ProWoo at info@prowoo.in for further assistance." });
+            res.json({ reply: refusalMessage });
         }
 
     } catch (error) {
