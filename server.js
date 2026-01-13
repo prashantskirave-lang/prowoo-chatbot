@@ -110,7 +110,7 @@ app.post('/api/chat', async (req, res) => {
             }
         });
 
-        if (maxScore >= 25) {
+        if (maxScore >= 10) {
             console.log(`Local match found: ${bestMatch.Question} (Score: ${maxScore})`);
             return res.json({ reply: bestMatch.Answer });
         }
