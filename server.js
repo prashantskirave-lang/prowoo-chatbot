@@ -85,13 +85,15 @@ app.post('/api/chat', async (req, res) => {
 
             // Check for keywords inclusion
             if (item.Keywords) {
-                const keywords = item.Keywords.split(' ').map(k => normalize(k));
+                // De-duplicate keywords to prevent double-scoring
+                const keywords = new Set(item.Keywords.split(/\s+/).map(k => normalize(k)));
+
                 keywords.forEach(k => {
                     if (k && !stopWords.has(k) && k.length > 1) {
                         const regex = new RegExp(`\\b${k}\\b`, 'i');
                         if (regex.test(userMsgNormalized)) {
-                            // Rare/Longer words get more points
-                            score += (5 + k.length);
+                            // Rare/Longer words get more points to favor specific intent
+                            score += (10 + k.length);
                         }
                     }
                 });
