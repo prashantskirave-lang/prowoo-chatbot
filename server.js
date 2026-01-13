@@ -32,9 +32,9 @@ function loadData() {
             .on('end', () => {
                 // Construct the system context
                 contextString = "You are 'ProBot', an intelligent and professional AI assistant for ProWoo Engineering Solutions. \n" +
-                    "Your goal is to assist users by answering their questions accurately using ONLY the provided Knowledge Base below. \n" +
-                    "If the answer is not explicitly in the Knowledge Base, politely apologize and state that you do not have that information, then suggest contracting contacting ProWoo at info@prowoo.in. \n" +
-                    "Maintain a polite, professional, and helpful tone. \n\n" +
+                    "STRICT RULE: Your goal is to assist users by answering their questions accurately using ONLY the provided Knowledge Base below. \n" +
+                    "If the answer is not explicitly in the Knowledge Base, or if someone asks a question unrelated to ProWoo Engineering Solutions, you MUST respond exactly with: 'I apologize, but I do not have permission or the information required to answer that specific query. Please contact ProWoo at info@prowoo.in for further assistance.' \n" +
+                    "Do NOT use any external knowledge. Maintain a polite, professional, and helpful tone. \n\n" +
                     "### KNOWLEDGE BASE ###\n";
 
                 faqData.forEach(item => {
@@ -116,53 +116,56 @@ app.post('/api/chat', async (req, res) => {
         }
 
         // 2. Fallback to Gemini API
-        // Construct the chat history for Gemini
-        // We start with the System Instruction (Context)
-        // Gemini API `startChat` history format: array of { role: "user" | "model", parts: [{ text: "..." }] }
+        try {
+            // Construct the chat history for Gemini
+            // We start with the System Instruction (Context)
+            // Gemini API `startChat` history format: array of { role: "user" | "model", parts: [{ text: "..." }] }
 
-        const chatHistory = [
-            {
-                role: "user",
-                parts: [{ text: contextString }]
-            },
-            {
-                role: "model",
-                parts: [{ text: "I understand. I am ProBot, and I am ready to assist with ProWoo Engineering Solutions inquiries based on the provided Knowledge Base." }]
-            }
-        ];
-
-        // Append client-provided history if any
-        if (history && Array.isArray(history)) {
-            history.forEach(msg => {
-                if ((msg.role === 'user' || msg.role === 'model') && msg.parts && msg.parts[0].text) {
-                    chatHistory.push({
-                        role: msg.role,
-                        parts: [{ text: msg.parts[0].text }]
-                    });
+            const chatHistory = [
+                {
+                    role: "user",
+                    parts: [{ text: contextString }]
+                },
+                {
+                    role: "model",
+                    parts: [{ text: "I understand. I am ProBot, and I am ready to assist with ProWoo Engineering Solutions inquiries based ONLY on the provided Knowledge Base." }]
                 }
+            ];
+
+            // Append client-provided history if any
+            if (history && Array.isArray(history)) {
+                history.forEach(msg => {
+                    if ((msg.role === 'user' || msg.role === 'model') && msg.parts && msg.parts[0].text) {
+                        chatHistory.push({
+                            role: msg.role,
+                            parts: [{ text: msg.parts[0].text }]
+                        });
+                    }
+                });
+            }
+
+            const chat = model.startChat({
+                history: chatHistory,
+                generationConfig: {
+                    maxOutputTokens: 500,
+                },
             });
+
+            const result = await chat.sendMessage(message);
+            const response = await result.response;
+            const text = response.text();
+
+            res.json({ reply: text });
+
+        } catch (apiError) {
+            console.error("Gemini API Error:", apiError.message);
+            // Consistent fallback for API issues or out-of-scope
+            res.json({ reply: "I apologize, but I do not have permission or the information required to answer that specific query. Please contact ProWoo at info@prowoo.in for further assistance." });
         }
-
-        const chat = model.startChat({
-            history: chatHistory,
-            generationConfig: {
-                maxOutputTokens: 500,
-            },
-        });
-
-        const result = await chat.sendMessage(message);
-        const response = await result.response;
-        const text = response.text();
-
-        res.json({ reply: text });
 
     } catch (error) {
-        console.error("Error in chat endpoint:", error);
-        // Log deep details if available
-        if (error.response) {
-            console.error("API Response Error:", JSON.stringify(error.response, null, 2));
-        }
-        res.status(500).json({ error: "Sorry, I'm having trouble connecting right now. Please try again later." });
+        console.error("Critical Error:", error);
+        res.status(500).json({ error: "An unexpected error occurred. Please try again later." });
     }
 });
 
